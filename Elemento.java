@@ -1,12 +1,16 @@
 public class Elemento {
-    private String nombre;
-    private String tipo; // Puede ser "Entero", "Cadena", "Operador", etc.
+    private String nombre;  // Nombre del elemento (lexema)
+    private String tipo;    // Tipo de dato (Entero, Cadena, Real, Operador, Vacio)
+    private String valor;   // Valor asociado (puede ser utilizado para otros propósitos)
 
-    public Elemento(String nombre, String tipo) {
+    // Constructor
+    public Elemento(String nombre, String tipo, String valor) {
         this.nombre = nombre;
         this.tipo = tipo;
+        this.valor = valor;
     }
 
+    // Getters
     public String getNombre() {
         return nombre;
     }
@@ -15,12 +19,16 @@ public class Elemento {
         return tipo;
     }
 
+    public String getValor() {
+        return valor;
+    }
+
+    // Setters
     public void setTipo(String tipo) {
         this.tipo = tipo;
     }
 
-    @Override
-    public String toString() {
-        return nombre + " es un " + tipo;
+    public void setValor(String valor) {
+        this.valor = valor;
     }
 }

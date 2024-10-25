@@ -28,40 +28,101 @@ public class Main {
     }
 
     private static void procesarLinea(TablaSimbolos tabla, String linea) {
+        // Verificar si la línea tiene más de un '=' para detectar errores de mal formulación
+        if (linea.split("=").length > 2) {
+            System.err.println("Error: La línea '" + linea + "' no está bien formada.");
+            String nombre = linea.split("=")[0].trim();
+            tabla.agregarElemento(nombre, "Vacio");
+            return;
+        }
+    
         String[] partes = linea.split("=");
         if (partes.length == 2) {
             String nombre = partes[0].trim();
             String valor = partes[1].trim();
-            
-            // Deducción del tipo del nombre de la variable
-            String tipoNombre = deducirTipo(nombre);
-            tabla.agregarElemento(nombre, tipoNombre);
-
-            // Deducción del tipo del valor y procesamiento de los elementos
-            procesarValor(tabla, valor);
+    
+            // Procesar y deducir el tipo de la expresión completa
+            String tipoValor = procesarExpresion(tabla, valor);
+            if (tipoValor.equals("Vacio") || tipoValor.equals("Desconocido")) {
+                tabla.agregarElemento(nombre, "Vacio"); // Error en la expresión
+            } else {
+                tabla.agregarElemento(nombre, tipoValor); // Agregar el tipo deducido
+            }
         } else {
             System.err.println("Error: La línea '" + linea + "' no está bien formada.");
+            String nombre = partes[0].trim();
+            tabla.agregarElemento(nombre, "Vacio"); // Marcar como vacío si no está bien formada
         }
     }
+    
 
-    private static void procesarValor(TablaSimbolos tabla, String valor) {
-        String[] elementos = valor.split("\\s+|(?=[=+\\-*\\/])|(?<=[=+\\-*\\/])");
+    private static String procesarExpresion(TablaSimbolos tabla, String expresion) {
+        String[] elementos = expresion.split("\\s+|(?=[=+\\-*\\/])|(?<=[=+\\-*\\/])");
+        String tipoResultado = "Entero"; // Asumimos que empieza como Entero
+        boolean hayErrores = false; // Variable para verificar errores
+        boolean operandoInvalido = false; // Controlar errores por tipos incompatibles
+    
         for (String elem : elementos) {
             if (!elem.isEmpty()) {
                 String tipo = deducirTipo(elem);
-                if (tipo.equals("Desconocido")) {
-                    // Aquí consideramos que es un error
+    
+                if (tipo.equals("Identificador")) {
+                    String tipoReal = tabla.obtenerTipo(elem);
+                    if (tipoReal.equals("Vacio")) {
+                        System.err.println("Error: El identificador '" + elem + "' no está definido.");
+                        tipo = "Vacio";
+                        hayErrores = true;
+                    } else {
+                        tipo = tipoReal;
+                    }
+                } else if (tipo.equals("Desconocido")) {
                     System.err.println("Error: La entrada '" + elem + "' es inválida o mal formada.");
-                    tabla.agregarElemento(elem, "Vacio"); // Dejar vacío en caso de error
-                } else {
-                    tabla.agregarElemento(elem, tipo);
+                    tipo = "Vacio";
+                    hayErrores = true;
                 }
+    
+                // Si la expresión mezcla tipos incorrectos, marcar error
+                if ((tipoResultado.equals("Entero") || tipoResultado.equals("Real")) && tipo.equals("Cadena") || 
+                    (tipo.equals("Entero") || tipo.equals("Real")) && tipoResultado.equals("Cadena")) {
+                    System.err.println("Error: La operación contiene una cadena en un contexto matemático.");
+                    operandoInvalido = true;
+                }
+    
+                // Agregar el elemento a la tabla de símbolos
+                tabla.agregarElemento(elem, tipo);
+    
+                // Actualizar el tipo de la expresión en base a los elementos
+                tipoResultado = actualizarTipoResultado(tipoResultado, tipo);
             }
         }
+    
+        // Si la expresión contiene una cadena dentro de una operación matemática
+        if (operandoInvalido) {
+            return "Vacio";
+        }
+    
+        return hayErrores ? "Vacio" : tipoResultado; // Devuelve el tipo final de la expresión
+    }
+    
+    
+
+    private static String actualizarTipoResultado(String tipoActual, String nuevoTipo) {
+        // Si cualquiera de los tipos es Real, el resultado es Real
+        if (tipoActual.equals("Real") || nuevoTipo.equals("Real")) {
+            return "Real";
+        }
+        // Si el tipo es "Vacio", la expresión es inválida
+        if (nuevoTipo.equals("Vacio")) {
+            return "Vacio";
+        }
+        // Si ambos son Enteros, el resultado sigue siendo Entero
+        return "Entero";
     }
 
     private static String deducirTipo(String valor) {
-        if (valor.matches("-?\\d+")) { // Número entero
+        if (valor.matches("-?\\d+\\.\\d+")) { // Número real
+            return "Real";
+        } else if (valor.matches("-?\\d+")) { // Número entero
             return "Entero";
         } else if (valor.matches("\".*\"")) { // Cadena entre comillas
             return "Cadena";
@@ -70,7 +131,7 @@ public class Main {
         } else if (valor.matches("[=+\\-*\\/]")) { // Operadores
             return "Operador";
         }
-        // Consideramos cualquier otra entrada como error
         return "Desconocido"; // Esto se usa para determinar que es un error
     }
+    
 }
