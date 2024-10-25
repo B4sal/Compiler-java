@@ -1,0 +1,5 @@
+_Var1_ = 10
+_Var2_ = "hola"
+_Error1_ = si
+_Error2_ = _Var1_ + "hola" * 12
+_Ope1_ = 1 + 2 * _Var1_
