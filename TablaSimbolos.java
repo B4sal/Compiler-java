@@ -14,6 +14,9 @@ public class TablaSimbolos {
         if (!tabla.containsKey(nombre)) {  // Verifica si ya existe
             Elemento elemento = new Elemento(nombre, tipo, "");
             tabla.put(nombre, elemento);
+        } else {
+            // Si ya existe, actualizar el tipo si es necesario
+            tabla.get(nombre).setTipo(tipo);
         }
     }
 
@@ -33,8 +36,6 @@ public class TablaSimbolos {
         System.out.println("---------------------------");
 
         List<Elemento> elementosOrdenados = new ArrayList<>(tabla.values());
-        
-        // Ordenar los elementos según el orden deseado
         for (Elemento elemento : elementosOrdenados) {
             System.out.printf("%-20s %s%n", elemento.getNombre(), elemento.getTipo());
         }
