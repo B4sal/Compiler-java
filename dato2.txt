@@ -9,3 +9,12 @@ while ( _varA1_ <= 50 - 4 && _varB2_ >= 2 ) {
     _varB2_ = _varB2_ / 2
     _varCounter4_++
 }
+
+
+
+_Var1_ = 10
+_Var2_ = "_hola_"
+_Error1_ = si
+_Error2_ = _Var2_ + 2 * 12
+_Ope1_ = 1 + 2 * 1.2 
+_real_ = 1.2

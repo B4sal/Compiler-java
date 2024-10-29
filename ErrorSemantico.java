@@ -1,10 +1,9 @@
 public class ErrorSemantico {
-    private String token;        // El token de error
-    private String lexema;       // Lexema asociado
-    private int renglon;         // Número de línea donde ocurrió el error
-    private String descripcion;   // Descripción del error
+    private String token;
+    private String lexema;
+    private int renglon;
+    private String descripcion;
 
-    // Constructor
     public ErrorSemantico(String token, String lexema, int renglon, String descripcion) {
         this.token = token;
         this.lexema = lexema;
@@ -12,7 +11,6 @@ public class ErrorSemantico {
         this.descripcion = descripcion;
     }
 
-    // Getters
     public String getToken() {
         return token;
     }
