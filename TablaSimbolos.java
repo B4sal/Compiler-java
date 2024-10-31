@@ -50,4 +50,9 @@ public class TablaSimbolos {
             System.out.printf("%-15s %-10s %-40s%n", elem.getNombre(), elem.getTipo(), elem.getDescripcion());
         }
     }
+
+    public List<Elemento> getElementos() {
+        return elementos;
+    }
+    
 }

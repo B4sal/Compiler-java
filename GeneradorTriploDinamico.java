@@ -4,14 +4,12 @@ import java.util.regex.*;
 
 class GeneradorTriploDinamico {
     static int temporalID = 1; // ID para los temporales
-    static int lineaID = 1; // ID para las líneas
 
-    public static void main(String[] args) {
+    public static void procesarArchivo(String archivoEntrada, List<String[]> tabla) {
         try {
-            File file = new File("datos.txt");
+            File file = new File(archivoEntrada);
             BufferedReader br = new BufferedReader(new FileReader(file));
             String line;
-            List<String[]> tabla = new ArrayList<>();
 
             // Procesar las líneas del archivo
             while ((line = br.readLine()) != null) {
@@ -20,11 +18,25 @@ class GeneradorTriploDinamico {
 
             // Añadir el cierre con "…"
             tabla.add(new String[]{"...", "...", "..."});
-            imprimirTabla(tabla);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
+
+    public static void procesarTexto(String textoEntrada, List<String[]> tabla) {
+        try (BufferedReader br = new BufferedReader(new StringReader(textoEntrada))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                procesarLinea(line, br, tabla);
+            }
+            tabla.add(new String[]{"...", "...", "..."});
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
 
     private static void procesarLinea(String line, BufferedReader br, List<String[]> tabla) throws IOException {
         line = line.trim();
@@ -45,6 +57,8 @@ class GeneradorTriploDinamico {
         tabla.add(new String[]{variable, temporal, "="});
     }
 
+
+    
     private static String evaluarExpresion(String expresion, List<String[]> tabla) {
         Matcher matcher = Pattern.compile("[\\w]+|[+\\-*/]").matcher(expresion);
         List<String> operandos = new ArrayList<>();
@@ -142,7 +156,6 @@ class GeneradorTriploDinamico {
             } else if (innerLine.contains("=")) {
                 procesarAsignacion(innerLine, tabla);
             }
-            lineaID++;
         }
     
         // Obtener el índice del fin del ciclo
@@ -161,19 +174,18 @@ class GeneradorTriploDinamico {
         // Añadir salto incondicional al inicio del ciclo
         tabla.add(new String[]{"vacio", Integer.toString(indiceInicioCiclo), "JR"});
     }
-    
-    
-    
 
     private static String obtenerTemporalLibre() {
         return "T" + temporalID++;
     }
 
-    private static void imprimirTabla(List<String[]> tabla) {
+    public static void imprimirTabla(List<String[]> tabla) {
         System.out.println("ID\tDato Objeto\tDato Fuente\tOperador");
         int id = 1;
         for (String[] fila : tabla) {
             System.out.printf("%d\t%s\t\t%s\t\t%s%n", id++, fila[0], fila[1], fila[2]);
         }
     }
+
+    
 }
