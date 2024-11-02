@@ -94,10 +94,10 @@ class GeneradorTriploDinamico {
         String condiciones = line.substring(line.indexOf("(") + 1, line.indexOf(")"));
         String[] condicionesArray = condiciones.split("&&|\\|\\|");
         boolean esAND = condiciones.contains("&&");
-        
+    
         int indiceInicioCiclo = tabla.size() + 1;
         List<int[]> saltosPendientes = new ArrayList<>();
-        
+    
         // Manejar las condiciones
         for (int i = 0; i < condicionesArray.length; i++) {
             String condicion = condicionesArray[i].trim();
@@ -105,16 +105,16 @@ class GeneradorTriploDinamico {
             String izq = partes[0].trim();
             String op = partes[1].trim();
             String der = partes[2].trim();
-            
+    
             String tempIzq = obtenerTemporalLibre();
             tabla.add(new String[]{tempIzq, izq, "="});
-            
+    
             String tempDer = obtenerTemporalLibre();
             tabla.add(new String[]{tempDer, der, "="});
-            
+    
             String tempComp = obtenerTemporalLibre();
             tabla.add(new String[]{tempComp, tempIzq, op});
-        
+    
             if (esAND) {
                 // Para AND, saltar a la siguiente condición si es TRUE
                 int saltoTrue = tabla.size() + 3; // Salto para la siguiente condición
@@ -131,17 +131,8 @@ class GeneradorTriploDinamico {
                 saltosPendientes.add(new int[]{tabla.size(), saltoTrue, 1});
                 tabla.add(new String[]{"TR" + (temporalID++), "TRUE", Integer.toString(saltoTrue)});
     
-                // Si es FALSE, verificar si hay más condiciones
-                int saltoFalse;
-                if (i < condicionesArray.length - 1) { 
-                    // Si no es la última condición, hay más condiciones para evaluar
-                    saltoFalse = tabla.size() + 3; // Salta a la siguiente condición
-                } else { 
-                    // Última condición falsa
-                    saltoFalse = tabla.size() + 1; // Guardar un valor temporal para la salida del ciclo
-                }
-    
-                // Agregar salto a saltosPendientes y tabla
+                // Si es FALSE, saltar a la primera línea de la siguiente condición (si existe)
+                int saltoFalse = (i < condicionesArray.length - 1) ? tabla.size() + 2 : 0;
                 saltosPendientes.add(new int[]{tabla.size(), saltoFalse, 2});
                 tabla.add(new String[]{"TR" + (temporalID++), "FALSE", Integer.toString(saltoFalse)});
             }
@@ -160,20 +151,22 @@ class GeneradorTriploDinamico {
     
         // Obtener el índice del fin del ciclo
         int indiceFinCiclo = tabla.size() + 2;
-        
+    
         // Actualizar los saltos
         for (int[] salto : saltosPendientes) {
             int saltoPos = salto[0];
             if (salto[2] == 1) { // Salto a la siguiente condición o al ciclo
                 tabla.get(saltoPos)[2] = Integer.toString(salto[1]);
             } else { // Salto fuera del ciclo
-                tabla.get(saltoPos)[2] = Integer.toString(indiceFinCiclo);
+                tabla.get(saltoPos)[2] = (salto[1] == 0) ? Integer.toString(indiceFinCiclo) : Integer.toString(salto[1]);
             }
         }
-        
+    
         // Añadir salto incondicional al inicio del ciclo
         tabla.add(new String[]{"vacio", Integer.toString(indiceInicioCiclo), "JR"});
     }
+    
+    
 
     private static String obtenerTemporalLibre() {
         return "T" + temporalID++;
