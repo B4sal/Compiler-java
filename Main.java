@@ -202,6 +202,14 @@ public class Main {
                         errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), expresion, numeroLinea, "Incompatibilidad de tipos en la operación.")); // Agregar error semántico
                         tipoResultado = "Vacio"; // Establecer el tipo de resultado como "Vacio"
                         hayErrores = true; // Establecer la bandera de errores
+                    } else if (tipoResultado.equals("Entero") && tipo.equals("Real")) {
+                        tipoResultado = "Real"; // Promover a Real si hay mezcla de Entero y Real
+                    } else if (tipoResultado.equals("Real") && tipo.equals("Entero")) {
+                        // Mantener tipoResultado como Real
+                    } else {
+                        errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), expresion, numeroLinea, "Incompatibilidad de tipos en la operación.")); // Agregar error semántico
+                        tipoResultado = "Vacio"; // Establecer el tipo de resultado como "Vacio"
+                        hayErrores = true; // Establecer la bandera de errores
                     }
                 }
             }
@@ -211,7 +219,7 @@ public class Main {
     }
 
     private static String deducirTipo(String valor) {
-        if (valor.matches("-?\\d+\\.\\d+")) { // Si el valor es un número real
+        if (valor.matches("-?\\d+\\.\\d+f?")) { // Si el valor es un número real o flotante
             return "Real";
         } else if (valor.matches("-?\\d+")) { // Si el valor es un número entero
             return "Entero";
