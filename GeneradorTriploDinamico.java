@@ -5,7 +5,6 @@ import java.util.regex.*;
 class GeneradorTriploDinamico {
     static int temporalID = 1; // ID para los temporales
     static List<String> temporalesLibres = new ArrayList<>(); // Lista de temporales libres
-    static List<String> temporalesLibres = new ArrayList<>(); // Lista de temporales libres
 
     public static void procesarArchivo(String archivoEntrada, List<String[]> tabla) {
         try {
@@ -53,7 +52,6 @@ class GeneradorTriploDinamico {
         String expresion = partes[1].trim(); // Obtener la expresión de la asignación
 
         String temporal = evaluarExpresion(expresion, tabla); // Evaluar la expresión y obtener un temporal
-        liberarTemporal(temporal); // Liberar el temporal después de usarlo
         liberarTemporal(temporal); // Liberar el temporal después de usarlo
         tabla.add(new String[]{variable, temporal, "="}); // Añadir la asignación a la tabla
     }
@@ -166,7 +164,6 @@ class GeneradorTriploDinamico {
     
                 int saltoFalse = (i < condicionesArray.length - 1) ? tabla.size() + 2 : 0;
                 saltosPendientes.add(new int[]{tabla.size(), saltoFalse, 2});
-                tabla.add(new String[]{"TR2", "FALSE", Integer.toString(saltoFalse)});
                 tabla.add(new String[]{"TR2", "FALSE", Integer.toString(saltoFalse)});
             }
     
