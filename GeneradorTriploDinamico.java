@@ -57,13 +57,13 @@ class GeneradorTriploDinamico {
     }
 
     private static String evaluarExpresion(String expresion, List<String[]> tabla) {
-        Matcher matcher = Pattern.compile("[\\w.]+|[+\\-*/]").matcher(expresion); // Crear un Matcher para encontrar operandos y operadores
+        Matcher matcher = Pattern.compile("[\\w.]+|[+\\-*/()]").matcher(expresion); // Crear un Matcher para encontrar operandos y operadores
         List<String> operandos = new ArrayList<>(); // Lista para almacenar los operandos
         List<String> operadores = new ArrayList<>(); // Lista para almacenar los operadores
 
         while (matcher.find()) {
             String token = matcher.group();
-            if (token.matches("[+\\-*/]")) {
+            if (token.matches("[+\\-*/()]")) {
                 operadores.add(token); // Añadir el operador a la lista de operadores
             } else {
                 operandos.add(token); // Añadir el operando a la lista de operandos
@@ -90,6 +90,7 @@ class GeneradorTriploDinamico {
             temporalActual = temporalActual.equals("T1") ? "T2" : "T1"; // Alternar entre T1 y T2
         }
 
+        liberarTemporal(temporalActual); // Liberar el temporal después de usarlo
         return temporalActual; // Devolver el temporal actual
     }
 
