@@ -4,6 +4,7 @@ import java.util.regex.*;
 
 class GeneradorTriploDinamico {
     static int temporalID = 1; // ID para los temporales
+    static List<String> temporalesLibres = new ArrayList<>(); // Lista de temporales libres
 
     public static void procesarArchivo(String archivoEntrada, List<String[]> tabla) {
         try {
@@ -51,90 +52,126 @@ class GeneradorTriploDinamico {
         String expresion = partes[1].trim(); // Obtener la expresión de la asignación
 
         String temporal = evaluarExpresion(expresion, tabla); // Evaluar la expresión y obtener un temporal
+        liberarTemporal(temporal); // Liberar el temporal después de usarlo
         tabla.add(new String[]{variable, temporal, "="}); // Añadir la asignación a la tabla
     }
 
     private static String evaluarExpresion(String expresion, List<String[]> tabla) {
-        Matcher matcher = Pattern.compile("[\\w]+|[+\\-*/]").matcher(expresion); // Crear un Matcher para encontrar operandos y operadores
+        Matcher matcher = Pattern.compile("\\w+\\.?\\w*|[+\\-*/]").matcher(expresion); // Crear un Matcher para encontrar operandos y operadores
         List<String> operandos = new ArrayList<>(); // Lista para almacenar los operandos
         List<String> operadores = new ArrayList<>(); // Lista para almacenar los operadores
-        String temporalActual = "T1"; // Usamos T1 como el temporal principal
-
+    
+        // Extraer operadores y operandos de la expresión
         while (matcher.find()) {
             String token = matcher.group();
             if (token.matches("[+\\-*/]")) {
-                operadores.add(token); // Añadir el operador a la lista de operadores
+                operadores.add(token);
             } else {
-                operandos.add(token); // Añadir el operando a la lista de operandos
+                operandos.add(token);
             }
         }
-
+    
+        // Si solo hay un operando, asignarlo directamente a un temporal
         if (operandos.size() == 1) {
-            tabla.add(new String[]{temporalActual, operandos.get(0), "="}); // Añadir la asignación a la tabla
-            return temporalActual; // Devolver el temporal actual
+            String temporal = obtenerTemporalLibre();
+            tabla.add(new String[]{temporal, operandos.get(0), "="});
+            return temporal; // Devolvemos el temporal sin liberarlo
         }
-
+    
+        // Procesar operandos y operadores en orden
+        String temporalActual = obtenerTemporalLibre(); // Primer temporal para el primer operando
+        tabla.add(new String[]{temporalActual, operandos.get(0), "="}); // Asignamos el primer operando al primer temporal
+    
         for (int i = 1; i < operandos.size(); i++) {
-            String operando1 = i == 1 ? operandos.get(0) : temporalActual; // Obtener el primer operando
-            String operando2 = operandos.get(i); // Obtener el segundo operando
-            String operador = operadores.get(i - 1); // Obtener el operador
-
-            tabla.add(new String[]{"T2", operando1, operador}); // Añadir la operación a la tabla
-            tabla.add(new String[]{temporalActual, operando2, "="}); // Añadir la asignación a la tabla
+            String operando1 = temporalActual; // El temporal actual con el resultado parcial
+            String operando2 = operandos.get(i); // El siguiente operando
+    
+            // Verifica que haya un operador disponible en este índice
+            if (i - 1 < operadores.size()) {
+                String operador = operadores.get(i - 1); // El operador correspondiente
+    
+                // Almacenar el resultado de la operación en el mismo temporalActual en la última operación
+                if (i < operandos.size() - 1) {
+                    String nuevoTemporal = obtenerTemporalLibre();
+                    tabla.add(new String[]{nuevoTemporal, operando1, operador});
+                    tabla.add(new String[]{nuevoTemporal, operando2, "="});
+                    liberarTemporal(temporalActual);
+                    temporalActual = nuevoTemporal;
+                } else {
+                    tabla.add(new String[]{temporalActual, operando1, operador});
+                    tabla.add(new String[]{temporalActual, operando2, "="});
+                }
+            } else {
+                System.err.println("Error: operador faltante para la expresión en la posición " + i);
+                break; // Rompe el bucle si falta un operador
+            }
         }
-
-        return temporalActual; // Devolver el temporal actual
+    
+        return temporalActual; // Devuelve el temporal final que contiene el resultado completo
     }
+    
+    
 
     private static void procesarWhile(String line, BufferedReader br, List<String[]> tabla) throws IOException {
         String condiciones = line.substring(line.indexOf("(") + 1, line.indexOf(")")); // Obtener las condiciones del while
         String[] condicionesArray = condiciones.split("&&|\\|\\|"); // Dividir las condiciones usando "&&" o "||"
         boolean esAND = condiciones.contains("&&"); // Verificar si las condiciones están unidas por "&&"
-
+    
         int indiceInicioCiclo = tabla.size() + 1; // Índice de inicio del ciclo
         List<int[]> saltosPendientes = new ArrayList<>(); // Lista para almacenar los saltos pendientes
-
+    
         // Manejar las condiciones
         for (int i = 0; i < condicionesArray.length; i++) {
             String condicion = condicionesArray[i].trim();
             String[] partes = condicion.split(" ");
+            if (partes.length < 3) {
+                continue; // Saltar si la condición no tiene el formato esperado
+            }
+            
             String izq = partes[0].trim();
             String op = partes[1].trim();
             String der = partes[2].trim();
-
-            String tempIzq = obtenerTemporalLibre(); // Obtener un temporal libre para el operando izquierdo
-            tabla.add(new String[]{tempIzq, izq, "="}); // Añadir la asignación a la tabla
-
-            String tempDer = obtenerTemporalLibre(); // Obtener un temporal libre para el operando derecho
-            tabla.add(new String[]{tempDer, der, "="}); // Añadir la asignación a la tabla
-
-            String tempComp = obtenerTemporalLibre(); // Obtener un temporal libre para la comparación
-            tabla.add(new String[]{tempComp, tempIzq, op}); // Añadir la comparación a la tabla
-
+    
+            // Si el operando izquierdo no es un temporal ni un valor inmediato, asignarlo a un nuevo temporal
+            String tempIzq = (izq.matches("T\\d+") || izq.matches("\\d+")) ? izq : obtenerTemporalLibre();
+            if (!izq.equals(tempIzq)) {
+                tabla.add(new String[]{tempIzq, izq, "="});
+            }
+    
+            // Si el operando derecho no es un temporal ni un valor inmediato, asignarlo a un nuevo temporal
+            String tempDer = (der.matches("T\\d+") || der.matches("\\d+")) ? der : obtenerTemporalLibre();
+            if (!der.equals(tempDer)) {
+                tabla.add(new String[]{tempDer, der, "="});
+            }
+    
+            // Añadir la comparación a la tabla usando los temporales correctos
+            tabla.add(new String[]{tempIzq, tempDer, op});
+    
             if (esAND) {
                 int saltoFalso = 0; // Salto fuera del ciclo
                 int siguienteCond = tabla.size() + 3; // Salto para la siguiente condición
-
-                // Si es `AND`, fallo en una condición significa salida del ciclo.
+    
                 saltosPendientes.add(new int[]{tabla.size(), siguienteCond, 1});
-                tabla.add(new String[]{"TR" + (temporalID++), "TRUE", Integer.toString(siguienteCond)});
-
+                tabla.add(new String[]{"TR1", "TRUE", Integer.toString(siguienteCond)});
+    
                 saltosPendientes.add(new int[]{tabla.size(), saltoFalso, 2});
-                tabla.add(new String[]{"TR" + (temporalID++), "FALSE", Integer.toString(saltoFalso)});
-
+                tabla.add(new String[]{"TR2", "FALSE", Integer.toString(saltoFalso)});
+    
             } else { // OR
-                // Si es TRUE, saltar directamente al cuerpo del ciclo
-                int saltoTrue = indiceInicioCiclo + 10; // Salta al contenido del while
+                int saltoTrue = indiceInicioCiclo + 10;
                 saltosPendientes.add(new int[]{tabla.size(), saltoTrue, 1});
-                tabla.add(new String[]{"TR" + (temporalID++), "TRUE", Integer.toString(saltoTrue)});
-
-                // Si es FALSE, saltar a la primera línea de la siguiente condición (si existe)
+                tabla.add(new String[]{"TR1", "TRUE", Integer.toString(saltoTrue)});
+    
                 int saltoFalse = (i < condicionesArray.length - 1) ? tabla.size() + 2 : 0;
                 saltosPendientes.add(new int[]{tabla.size(), saltoFalse, 2});
-                tabla.add(new String[]{"TR" + (temporalID++), "FALSE", Integer.toString(saltoFalse)});
+                tabla.add(new String[]{"TR2", "FALSE", Integer.toString(saltoFalse)});
             }
+    
+            // Liberar los temporales si fueron asignados
+            if (!izq.equals(tempIzq)) liberarTemporal(tempIzq);
+            if (!der.equals(tempDer)) liberarTemporal(tempDer);
         }
-
+    
         // Procesar el contenido dentro del ciclo while
         String innerLine;
         while ((innerLine = br.readLine()) != null) {
@@ -145,22 +182,33 @@ class GeneradorTriploDinamico {
                 procesarAsignacion(innerLine, tabla); // Procesar una asignación dentro del while
             }
         }
-
+    
         int indiceFinCiclo = tabla.size() + 2; // Índice de fin del ciclo
-
+    
         // Actualizar saltos
         for (int[] salto : saltosPendientes) {
             int saltoPos = salto[0];
             tabla.get(saltoPos)[2] = (salto[1] == 0) ? Integer.toString(indiceFinCiclo) : Integer.toString(salto[1]);
         }
-
+    
         // Añadir salto incondicional al inicio del ciclo
         tabla.add(new String[]{"vacio", Integer.toString(indiceInicioCiclo), "JR"});
     }
-
+    
+    
     private static String obtenerTemporalLibre() {
-        return "T" + temporalID++; // Devolver un temporal libre
+        if (!temporalesLibres.isEmpty()) {
+            return temporalesLibres.remove(0); // Reutilizar un temporal libre si está disponible
+        }
+        return "T" + (temporalID++); // Devolver un nuevo temporal si no hay libres
     }
+
+    private static void liberarTemporal(String temporal) {
+        if (!temporalesLibres.contains(temporal)) {
+            temporalesLibres.add(temporal); // Añadir el temporal a la lista de temporales libres solo si no está duplicado
+        }
+    }
+    
 
     public static void imprimirTabla(List<String[]> tabla) {
         System.out.println("ID\tDato Objeto\tDato Fuente\tOperador"); // Imprimir encabezados de la tabla
@@ -170,3 +218,4 @@ class GeneradorTriploDinamico {
         }
     }
 }
+
