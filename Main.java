@@ -179,14 +179,15 @@ import java.awt.event.ActionEvent;
         
             for (String elem : elementos) {
                 if (!elem.isEmpty()) {
-                    // Excluir operadores y símbolos como '}' que no deben generar errores
+                    // Include operators in the symbol table
                     if (elem.equals("+") || elem.equals("-") || elem.equals("*") || elem.equals("/") || 
                         elem.equals("<") || elem.equals(">") || elem.equals("=") || elem.equals("}") || 
                         elem.equals("(") || elem.equals(")")) {
-                        continue; // Ignorar operadores y otros símbolos
+                        tabla.agregarElemento(elem, "Operador"); // Add operator to the symbol table
+                        continue; // Continue to the next element
                     }
         
-                    String tipo = deducirTipo(elem); // Deduce el tipo del elemento
+                    String tipo = deducirTipo(elem); // Deduce the type of the element
         
                     // Si el tipo es "Desconocido", asignar a "Vacio" (por seguridad)
                     if (tipo.equals("Desconocido")) {
