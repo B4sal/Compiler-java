@@ -1,4 +1,4 @@
-    import java.awt.event.ActionEvent;
+import java.awt.event.ActionEvent;
     import javax.swing.*;
     import javax.swing.table.DefaultTableModel;
     import java.awt.*;
@@ -156,21 +156,22 @@
             if (linea.contains("=")) { // Si la línea contiene un signo de igual
                 String[] partes = linea.split("="); // Dividir la línea en partes
                 if (partes.length == 2) { // Si hay dos partes
-                    String nombre = partes[0].trim(); // Obtener el nombre
-                    String valor = partes[1].trim(); // Obtener el valor
-                    String tipoValor = procesarExpresion(tabla, errores, valor, numeroLinea); // Procesar la expresión
+                    String nombre = partes[0].trim(); // Obtener el nombre (antes del igual)
+                    String valor = partes[1].trim(); // Obtener el valor (después del igual)
+                    String tipoValor = procesarExpresion(tabla, errores, valor, numeroLinea, nombre); // Pasar solo la parte antes del igual como 'nombre'
                     tabla.agregarElemento(nombre, tipoValor); // Agregar el elemento a la tabla de símbolos
                 } else {
-                    String nombre = partes[0].trim(); // Obtener el nombre
+                    String nombre = partes[0].trim(); // Obtener el nombre (antes del igual)
                     tabla.agregarElemento(nombre, "Vacio"); // Agregar el elemento con tipo "Vacio"
                 }
             } else {
-                procesarExpresion(tabla, errores, linea, numeroLinea); // Procesar la expresión
+                procesarExpresion(tabla, errores, linea, numeroLinea, linea); // Llamada con todos los argumentos necesarios
             }
         }
-        
-        private static String procesarExpresion(TablaSimbolos tabla, List<ErrorSemantico> errores, String expresion, int numeroLinea) {
-            // Dividir la expresión en elementos
+
+        private static String procesarExpresion(TablaSimbolos tabla, List<ErrorSemantico> errores, String expresion, int numeroLinea, String lineaCompleta) {
+            // Aquí, lineaCompleta contendrá la parte antes del '=' en una asignación
+            // (es decir, la variable o el identificador)
             String[] elementos = expresion.split("\\s+|(?=[=+\\-*\\/<=!&(){}])|(?<=[=+\\-*\\/<=!&(){}])");
             String tipoResultado = "Desconocido";
             String primerElementoIncompatible = null; // Para almacenar el primer elemento incompatible
@@ -198,7 +199,7 @@
                         String tipoReal = tabla.obtenerTipo(elem);
                         if (tipoReal.equals("Vacio")) {
                             // Error: variable indefinida
-                            errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), elem, numeroLinea, "Variable indefinida"));
+                            errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), elem, numeroLinea, "Variable indefinida en la asignación: " + lineaCompleta));
                             hayErrores = true;
                             break; // Terminar procesamiento si la variable no está definida
                         } else {
@@ -226,28 +227,30 @@
                 }
             }
         
-            // Si hubo errores, agregamos el error de incompatibilidad de tipos con la cadena como causa
+            // Si hubo errores, agregamos el error de incompatibilidad de tipos con la línea completa de la asignación
             if (hayErrores && primerElementoIncompatible != null) {
-                errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), primerElementoIncompatible, numeroLinea, "Incompatibilidad de tipos en la operación."));
+                errores.add(new ErrorSemantico("ErrSem" + (errores.size() + 1), primerElementoIncompatible, numeroLinea, 
+                                               "Incompatibilidad de tipos en la operación: " + lineaCompleta));
                 return "Vacio"; // Retornar "Vacio" si hubo un error
             }
         
             return tipoResultado; // Retornar el tipo de resultado si no hay errores
         }
         
-        
-        
 
         private static String deducirTipo(String elem) {
-            if (elem.matches("[0-9]+")) {
-                return "Entero"; // Si es un número entero
-            } else if (elem.matches("[0-9]*\\.[0-9]+")) {
-                return "Real"; // Si es un número real
+            if (elem.matches("^[0-9]+$")) {
+                return "Entero"; // Número entero
+            } else if (elem.matches("^[0-9]*\\.[0-9]+$")) {
+                return "Real"; // Número real
             } else if (elem.startsWith("\"") && elem.endsWith("\"")) {
-                return "Cadena"; // Si es una cadena
+                return "Cadena"; // Cadena de texto
+            } else if (elem.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
+                return "Identificador"; // Identificadores válidos (ej: variables)
             } else {
-                return "Identificador"; // Si no es ninguno de los anteriores, asumimos que es un identificador
+                return "Desconocido"; // Caso desconocido
             }
         }
+        
         
     }
