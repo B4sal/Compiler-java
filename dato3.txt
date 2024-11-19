@@ -1,0 +1,8 @@
+_varA1_ = 10 
+_varB2_ = 5 
+_varResult3_ = 0 
+_varCounter4_ = 0 
+while ( _varA1_ <= 50 && _varB2_ >= 2 ) {
+_varCounter4_ + 1  
+_varB2_ =4 / 3 + 2 * 1
+}

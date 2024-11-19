@@ -6,6 +6,14 @@ class GeneradorTriploDinamico {
     static int temporalID = 1; // ID para los temporales
     static List<String> temporalesLibres = new ArrayList<>(); // Lista de temporales libres
 
+    private static final Map<String, Integer> OPERADOR_PRECEDENCIA = new HashMap<>() {{
+        put("+", 1);
+        put("-", 1);
+        put("*", 2);
+        put("/", 2);
+        put("(", 0);
+    }};
+
     public static void procesarArchivo(String archivoEntrada, List<String[]> tabla) {
         try {
             File file = new File(archivoEntrada); // Crear un objeto File con el archivo de entrada
@@ -37,12 +45,14 @@ class GeneradorTriploDinamico {
     }
 
     private static void procesarLinea(String line, BufferedReader br, List<String[]> tabla) throws IOException {
-        line = line.trim(); // Eliminar espacios en blanco al inicio y al final de la línea
+        line = line.trim();
 
         if (line.startsWith("while")) {
-            procesarWhile(line, br, tabla); // Procesar una línea que comienza con "while"
+            procesarWhile(line, br, tabla); // Procesar bloque while
         } else if (line.contains("=")) {
-            procesarAsignacion(line, tabla); // Procesar una línea que contiene una asignación
+            procesarAsignacion(line, tabla); // Procesar asignaciones estándar
+        } else if (line.matches("\\w+\\s*\\+\\s*1")) { // Manejar incrementos del tipo var + 1
+            procesarIncremento(line, tabla);
         }
     }
 
@@ -56,61 +66,79 @@ class GeneradorTriploDinamico {
         tabla.add(new String[]{variable, temporal, "="}); // Añadir la asignación a la tabla
     }
 
-    private static String evaluarExpresion(String expresion, List<String[]> tabla) {
-        Matcher matcher = Pattern.compile("\\w+\\.?\\w*|[+\\-*/]").matcher(expresion); // Crear un Matcher para encontrar operandos y operadores
-        List<String> operandos = new ArrayList<>(); // Lista para almacenar los operandos
-        List<String> operadores = new ArrayList<>(); // Lista para almacenar los operadores
-    
-        // Extraer operadores y operandos de la expresión
-        while (matcher.find()) {
-            String token = matcher.group();
-            if (token.matches("[+\\-*/]")) {
-                operadores.add(token);
-            } else {
-                operandos.add(token);
-            }
-        }
-    
-        // Si solo hay un operando, asignarlo directamente a un temporal
-        if (operandos.size() == 1) {
-            String temporal = obtenerTemporalLibre();
-            tabla.add(new String[]{temporal, operandos.get(0), "="});
-            return temporal; // Devolvemos el temporal sin liberarlo
-        }
-    
-        // Procesar operandos y operadores en orden
-        String temporalActual = obtenerTemporalLibre(); // Primer temporal para el primer operando
-        tabla.add(new String[]{temporalActual, operandos.get(0), "="}); // Asignamos el primer operando al primer temporal
-    
-        for (int i = 1; i < operandos.size(); i++) {
-            String operando1 = temporalActual; // El temporal actual con el resultado parcial
-            String operando2 = operandos.get(i); // El siguiente operando
-    
-            // Verifica que haya un operador disponible en este índice
-            if (i - 1 < operadores.size()) {
-                String operador = operadores.get(i - 1); // El operador correspondiente
-    
-                // Almacenar el resultado de la operación en el mismo temporalActual en la última operación
-                if (i < operandos.size() - 1) {
-                    String nuevoTemporal = obtenerTemporalLibre();
-                    tabla.add(new String[]{nuevoTemporal, operando1, operador});
-                    tabla.add(new String[]{nuevoTemporal, operando2, "="});
-                    liberarTemporal(temporalActual);
-                    temporalActual = nuevoTemporal;
-                } else {
-                    tabla.add(new String[]{temporalActual, operando1, operador});
-                    tabla.add(new String[]{temporalActual, operando2, "="});
-                }
-            } else {
-                System.err.println("Error: operador faltante para la expresión en la posición " + i);
-                break; // Rompe el bucle si falta un operador
-            }
-        }
-    
-        return temporalActual; // Devuelve el temporal final que contiene el resultado completo
+    private static void procesarIncremento(String line, List<String[]> tabla) {
+        String variable = line.split("\\+")[0].trim(); // Extraer la variable antes del "+"
+        String temporal = obtenerTemporalLibre();
+
+        // Generar triplos para el incremento
+        tabla.add(new String[]{temporal, variable, "="}); // T1 = variable
+        tabla.add(new String[]{temporal, "1", "+"});     // T1 + 1
+        tabla.add(new String[]{variable, temporal, "="}); // variable = T1
+
+        liberarTemporal(temporal); // Liberar temporal usado
     }
-    
-    
+
+    private static String evaluarExpresion(String expresion, List<String[]> tabla) {
+        // Convertir a notación postfija usando Shunting Yard
+        List<String> postfija = convertirAPostfija(expresion);
+
+        Stack<String> pilaTemporales = new Stack<>();
+
+        for (String token : postfija) {
+            if (OPERADOR_PRECEDENCIA.containsKey(token)) {
+                // Es un operador, procesa los operandos
+                String operandoDerecho = pilaTemporales.pop();
+                String operandoIzquierdo = pilaTemporales.pop();
+                String temporal = obtenerTemporalLibre();
+
+                // Generar un único triplo para la operación
+                tabla.add(new String[]{operandoDerecho, operandoIzquierdo, token});
+                pilaTemporales.push(operandoDerecho);
+            } else {
+                // Es un operando, añadir directamente a la pila
+                String temporal = obtenerTemporalLibre();
+                tabla.add(new String[]{temporal, token, "="});
+                pilaTemporales.push(temporal);
+            }
+        }
+        
+        // El resultado final está en el tope de la pila
+        return pilaTemporales.pop();
+    }
+
+    private static List<String> convertirAPostfija(String expresion) {
+        List<String> salida = new ArrayList<>();
+        Stack<String> operadores = new Stack<>();
+        String[] tokens = expresion.split("\\s+");
+
+        for (String token : tokens) {
+            if (OPERADOR_PRECEDENCIA.containsKey(token)) {
+                // Es un operador
+                while (!operadores.isEmpty() &&
+                    OPERADOR_PRECEDENCIA.get(operadores.peek()) >= OPERADOR_PRECEDENCIA.get(token)) {
+                    salida.add(operadores.pop());
+                }
+                operadores.push(token);
+            } else if (token.equals("(")) {
+                operadores.push(token);
+            } else if (token.equals(")")) {
+                while (!operadores.isEmpty() && !operadores.peek().equals("(")) {
+                    salida.add(operadores.pop());
+                }
+                operadores.pop(); // Eliminar el "(" de la pila
+            } else {
+                // Es un operando
+                salida.add(token);
+            }
+        }
+
+        // Vaciar los operadores restantes
+        while (!operadores.isEmpty()) {
+            salida.add(operadores.pop());
+        }
+
+        return salida;
+    }
 
     private static void procesarWhile(String line, BufferedReader br, List<String[]> tabla) throws IOException {
         String condiciones = line.substring(line.indexOf("(") + 1, line.indexOf(")")); // Obtener las condiciones del while
@@ -180,6 +208,8 @@ class GeneradorTriploDinamico {
                 break; // Salir del ciclo cuando se encuentra el cierre del while
             } else if (innerLine.contains("=")) {
                 procesarAsignacion(innerLine, tabla); // Procesar una asignación dentro del while
+            } else if (innerLine.matches("\\w+\\s*\\+\\s*1")) { // Manejar incrementos del tipo var + 1
+                procesarIncremento(innerLine, tabla);
             }
         }
     
