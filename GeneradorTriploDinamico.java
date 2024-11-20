@@ -1,6 +1,5 @@
 import java.io.*;
 import java.util.*;
-import java.util.regex.*;
 
 class GeneradorTriploDinamico {
     static int temporalID = 1; // ID para los temporales
@@ -89,7 +88,7 @@ class GeneradorTriploDinamico {
                 // Es un operador, procesa los operandos
                 String operandoDerecho = pilaTemporales.pop();
                 String operandoIzquierdo = pilaTemporales.pop();
-                String temporal = obtenerTemporalLibre();
+                obtenerTemporalLibre();
 
                 // Generar un único triplo para la operación
                 tabla.add(new String[]{operandoDerecho, operandoIzquierdo, token});
