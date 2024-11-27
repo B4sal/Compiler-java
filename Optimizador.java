@@ -1,100 +1,130 @@
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 public class Optimizador {
+    private String codigoOptimizado;
+    private List<String[]> instrucciones;
 
-    public static List<String> optimizarCodigo(List<String> codigo) {
-        List<String> codigoOptimizado = new ArrayList<>();
-        HashSet<String> variablesDeclaradas = new HashSet<>();
-        HashSet<String> variablesUtilizadas = new HashSet<>();
-        boolean dentroDeBloque = false;
-        List<String> bloqueActual = new ArrayList<>();
-        String encabezadoBloque = "";
+    public Optimizador() {
+        this.instrucciones = new ArrayList<>();
+    }
 
+    public String optimizarCodigo(List<String> codigo) {
+        StringBuilder codigoSinEspacios = new StringBuilder();
         for (String linea : codigo) {
-            // Detectar inicio de bloque (while)
-            if (linea.startsWith("while")) {
-                dentroDeBloque = true;
-                encabezadoBloque = linea;
+            codigoSinEspacios.append(linea.replace(" ", "")).append("\n");
+        }
+        String codigoOriginal = codigoSinEspacios.toString();
+        String[] lineasCodigo = codigoOriginal.split("\n");
 
-                // Detectar y registrar variables utilizadas en la condición del while
-                variablesUtilizadas.addAll(extraerVariablesDeCondicion(linea));
-                bloqueActual.clear();
-            } else if (dentroDeBloque && linea.startsWith("}")) {
-                // Detectar fin de bloque
-                dentroDeBloque = false;
-                // Optimizar el bloque
-                List<String> bloqueOptimizado = optimizarBloque(encabezadoBloque, bloqueActual, variablesDeclaradas, variablesUtilizadas);
-                codigoOptimizado.addAll(bloqueOptimizado);
-            } else if (dentroDeBloque) {
-                // Agregar línea al bloque actual
-                bloqueActual.add(linea);
-                // Registrar variables utilizadas dentro del bloque
-                variablesUtilizadas.addAll(extraerVariablesDeLinea(linea));
-            } else {
-                // Procesar línea independiente (fuera de bloques)
-                if (linea.contains("=")) {
-                    String[] partes = linea.split("=");
-                    String variable = partes[0].trim();
-                    variablesDeclaradas.add(variable); // Marcar la variable como declarada
+        for (String instruccion : lineasCodigo) {
+            if (instruccion.contains("=")) {
+                obtenerExpresion(instruccion);
+            }
+        }
 
-                    if (variablesUtilizadas.contains(variable)) {
-                        codigoOptimizado.add(linea); // Mantener si la variable es usada
-                    }
-                } else {
-                    // Mantener líneas que no son asignaciones
-                    codigoOptimizado.add(linea);
+        this.codigoOptimizado = codigoOriginal;
+        analizarExpresiones();
+        StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
+
+        return formatearCodigoPorLineas(resultado.toString());
+    }
+
+    private void obtenerExpresion(String instruccion) {
+        String[] partes = instruccion.split("=");
+        if (partes.length == 2) {
+            String variable = partes[0].trim();
+            String expresion = partes[1].trim();
+            instrucciones.add(new String[]{variable, expresion});
+        }
+    }
+
+    private void analizarExpresiones() {
+        for (int i = 0; i < instrucciones.size(); i++) {
+            String[] actual = instrucciones.get(i);
+            String expresionActual = actual[1];
+
+            for (int j = i + 1; j < instrucciones.size(); j++) {
+                String[] siguiente = instrucciones.get(j);
+                String expresionSiguiente = siguiente[1];
+
+                if (expresionActual.equals(expresionSiguiente)) {
+                    cambiarVariables(actual, siguiente);
                 }
-                // Registrar variables utilizadas en líneas independientes
-                variablesUtilizadas.addAll(extraerVariablesDeLinea(linea));
+            }
+        }
+    }
+
+    private void cambiarVariables(String[] linea1, String[] linea2) {
+        String instruccion2 = linea2[0] + "=" + linea2[1];
+        StringBuilder codigo = new StringBuilder(codigoOptimizado);
+        codigo = eliminarInstruccion(codigo, instruccion2);
+
+        if (linea1.length > 0 && linea2.length > 0) {
+            String variable = linea2[0];
+            String nuevoValor = linea1[0];
+            int index = codigo.indexOf(variable);
+            while (index != -1) {
+                codigo.replace(index, index + variable.length(), nuevoValor);
+                index = codigo.indexOf(variable, index + nuevoValor.length());
             }
         }
 
-        return codigoOptimizado;
+        this.codigoOptimizado = codigo.toString();
     }
 
-    private static List<String> optimizarBloque(String encabezado, List<String> bloque, HashSet<String> variablesDeclaradas, HashSet<String> variablesUtilizadas) {
-        List<String> bloqueOptimizado = new ArrayList<>();
-        bloqueOptimizado.add(encabezado); // Mantener el encabezado del bloque (ejemplo: while)
+    private StringBuilder eliminarInstruccion(StringBuilder codigo, String instruccion) {
+        int index = codigo.indexOf(instruccion);
+        if (index != -1) {
+            codigo.delete(index, index + instruccion.length());
+        }
+        return codigo;
+    }
 
-        // Procesar líneas dentro del bloque
-        for (String linea : bloque) {
-            if (linea.contains("=")) {
-                String[] partes = linea.split("=");
-                String variable = partes[0].trim();
+    private StringBuilder eliminarLineasVacias(StringBuilder codigo) {
+        String[] lineas = codigo.toString().split("\n");
+        StringBuilder resultado = new StringBuilder();
+        for (String linea : lineas) {
+            if (!linea.trim().isEmpty()) {
+                resultado.append(linea).append("\n");
+            }
+        }
+        return resultado;
+    }
 
-                if (variablesUtilizadas.contains(variable) || variablesDeclaradas.contains(variable)) {
-                    bloqueOptimizado.add(linea); // Mantener si se usa o está declarada
-                }
-            } else {
-                bloqueOptimizado.add(linea); // Mantener líneas que no sean asignaciones
+    private String formatearCodigoPorLineas(String codigo) {
+        String[] lineas = codigo.split("\n");
+        StringBuilder resultado = new StringBuilder();
+
+        for (String linea : lineas) {
+            if (!linea.trim().isEmpty()) {
+                resultado.append(formatearLinea(linea)).append("\n");
             }
         }
 
-        bloqueOptimizado.add("}"); // Cerrar el bloque
-        return bloqueOptimizado;
+        return resultado.toString();
     }
 
-    private static HashSet<String> extraerVariablesDeCondicion(String linea) {
-        HashSet<String> variables = new HashSet<>();
-        // Extraer variables en la condición del while (entre paréntesis)
-        if (linea.contains("(") && linea.contains(")")) {
-            String condicion = linea.substring(linea.indexOf("(") + 1, linea.indexOf(")"));
-            variables.addAll(extraerVariablesDeLinea(condicion));
-        }
-        return variables;
+    private String formatearLinea(String linea) {
+        return linea
+                .replaceAll("=", " = ")
+                .replaceAll("\\+", " + ")
+                .replaceAll("-", " - ")
+                .replaceAll("\\*", " * ")
+                .replaceAll("/", " / ")
+                .replaceAll("&&", " && ")
+                .replaceAll("\\|\\|", " || ")
+                // Aseguramos que <= y >= no se separen
+                .replaceAll("<\\s*=", "<=")
+                .replaceAll(">\\s*=", ">=")
+                .replaceAll("<", " <")
+                .replaceAll(">", " >")
+                .replaceAll("\\(", " ( ")
+                .replaceAll("\\)", " ) ")
+                .replaceAll("\\{", " { ")
+                .replaceAll("\\}", " } ")
+                .replaceAll("\\s+", " ") // Elimina espacios extra
+                .trim();
     }
-
-    private static HashSet<String> extraerVariablesDeLinea(String linea) {
-        HashSet<String> variables = new HashSet<>();
-        // Dividir la línea por operadores comunes y detectar nombres de variables
-        String[] tokens = linea.split("[\\s+*/=<>!&|;,-]+");
-        for (String token : tokens) {
-            if (token.matches("[a-zA-Z_][a-zA-Z0-9_]*")) { // Identificar nombres válidos de variables
-                variables.add(token.trim());
-            }
-        }
-        return variables;
-    }
+    
 }
