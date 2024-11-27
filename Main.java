@@ -47,10 +47,38 @@ import java.awt.event.ActionEvent;
             JPanel buttonPanel = new JPanel(); // Crear un JPanel para los botones
             JButton btnCargar = new JButton("Cargar"); // Crear un botón para cargar archivo
             JButton btnCompilar = new JButton("Compilar"); // Crear un botón para compilar
+            JButton btnOptimizar = new JButton("Optimizar"); // Crear un botón para optimizar
+
 
             buttonPanel.add(btnCargar); // Agregar el botón de cargar al panel
             buttonPanel.add(btnCompilar); // Agregar el botón de compilar al panel
+            buttonPanel.add(btnOptimizar); // Agregar el botón al panel
+            
+
             frame.add(buttonPanel, BorderLayout.NORTH); // Agregar el panel de botones al norte del JFrame
+
+            btnOptimizar.addActionListener((ActionEvent e) -> {
+                // Obtener el texto directamente del JTextArea
+                String textoEntrada = textArea.getText(); // Obtener el texto del JTextArea
+                String[] lineas = textoEntrada.split("\n"); // Dividir el texto en líneas
+                List<String> codigo = new ArrayList<>();
+            
+                // Agregar las líneas al código a optimizar
+                for (String linea : lineas) {
+                    if (!linea.trim().isEmpty()) {
+                        codigo.add(linea.trim());
+                    }
+                }
+            
+                // Llamar al optimizador
+                List<String> codigoOptimizado = Optimizador.optimizarCodigo(codigo);
+            
+                // Mostrar el código optimizado en el JTextArea
+                textArea.setText(String.join("\n", codigoOptimizado));
+            
+                JOptionPane.showMessageDialog(frame, "Código optimizado con éxito.", "Optimización", JOptionPane.INFORMATION_MESSAGE);
+            });
+            
 
             // Acción para cargar un archivo
             btnCargar.addActionListener((ActionEvent e) -> {
