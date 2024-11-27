@@ -1,12 +1,17 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Optimizador {
+
     private String codigoOptimizado;
     private List<String[]> instrucciones;
+    private Map<String, String> mapaVariables; // Mapeo de variables redundantes a sus equivalentes
 
     public Optimizador() {
         this.instrucciones = new ArrayList<>();
+        this.mapaVariables = new HashMap<>();
     }
 
     public String optimizarCodigo(List<String> codigo) {
@@ -17,16 +22,21 @@ public class Optimizador {
         String codigoOriginal = codigoSinEspacios.toString();
         String[] lineasCodigo = codigoOriginal.split("\n");
 
+        // Procesar cada instrucción para obtener expresiones
         for (String instruccion : lineasCodigo) {
             if (instruccion.contains("=")) {
                 obtenerExpresion(instruccion);
             }
         }
 
+        // Inicializar con el código original
         this.codigoOptimizado = codigoOriginal;
-        analizarExpresiones();
-        StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
 
+        // Analizar y optimizar expresiones
+        analizarExpresiones();
+
+        // Eliminar líneas vacías y formatear
+        StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
         return formatearCodigoPorLineas(resultado.toString());
     }
 
@@ -40,45 +50,93 @@ public class Optimizador {
     }
 
     private void analizarExpresiones() {
+        Map<String, String> expresionesUnicas = new HashMap<>(); // Mapea expresiones a variables
+        int contadorTemporales = 0; // Contador para variables temporales (_z_)
+        List<String> instruccionesAEliminar = new ArrayList<>(); // Lista de instrucciones a eliminar
+    
         for (int i = 0; i < instrucciones.size(); i++) {
             String[] actual = instrucciones.get(i);
+            String variableActual = actual[0];
             String expresionActual = actual[1];
-
-            for (int j = i + 1; j < instrucciones.size(); j++) {
-                String[] siguiente = instrucciones.get(j);
-                String expresionSiguiente = siguiente[1];
-
-                if (expresionActual.equals(expresionSiguiente)) {
-                    cambiarVariables(actual, siguiente);
+    
+            // Si la expresión ya existe, reutilizamos la variable temporal
+            if (expresionesUnicas.containsValue(expresionActual)) {
+                String variableExistente = obtenerVariablePorExpresion(expresionActual, expresionesUnicas);
+    
+                // Reemplazar la variable actual con la variable temporal existente
+                reemplazarVariableEnCodigo(variableActual, variableExistente);
+    
+                // Marcar la instrucción redundante para eliminar
+                String instruccionRedundante = variableActual + " = " + expresionActual;
+                instruccionesAEliminar.add(instruccionRedundante);
+            } else {
+                // Si la expresión es nueva y no pertenece a una variable original
+                if (!expresionesUnicas.containsKey(variableActual)) {
+                    contadorTemporales++;
+                    String nuevaVariable = "_z" + contadorTemporales + "_";
+                    expresionesUnicas.put(nuevaVariable, expresionActual);
+    
+                    // Reemplazar en el código solo si es redundante
+                    if (esRedundante(variableActual, expresionActual)) {
+                        reemplazarVariableEnCodigo(variableActual, nuevaVariable);
+                    }
+                } else {
+                    // Guardamos directamente si es la primera aparición
+                    expresionesUnicas.put(variableActual, expresionActual);
                 }
             }
         }
+    
+        // Eliminar todas las instrucciones redundantes marcadas
+        for (String instruccion : instruccionesAEliminar) {
+            eliminarInstruccion(instruccion);
+        }
     }
 
-    private void cambiarVariables(String[] linea1, String[] linea2) {
-        String instruccion2 = linea2[0] + "=" + linea2[1];
-        StringBuilder codigo = new StringBuilder(codigoOptimizado);
-        codigo = eliminarInstruccion(codigo, instruccion2);
-
-        if (linea1.length > 0 && linea2.length > 0) {
-            String variable = linea2[0];
-            String nuevoValor = linea1[0];
-            int index = codigo.indexOf(variable);
-            while (index != -1) {
-                codigo.replace(index, index + variable.length(), nuevoValor);
-                index = codigo.indexOf(variable, index + nuevoValor.length());
+    private boolean esRedundante(String variable, String expresion) {
+        // Define si una variable es redundante (aparece más de una vez con la misma expresión)
+        int count = 0;
+        for (String[] instruccion : instrucciones) {
+            if (instruccion[0].equals(variable) && instruccion[1].equals(expresion)) {
+                count++;
             }
+        }
+        return count > 1;
+    }
+
+    private String obtenerVariablePorExpresion(String expresion, Map<String, String> mapa) {
+        for (Map.Entry<String, String> entrada : mapa.entrySet()) {
+            if (entrada.getValue().equals(expresion)) {
+                return entrada.getKey();
+            }
+        }
+        return null;
+    }
+
+    private void reemplazarVariableEnCodigo(String variable, String nuevoValor) {
+        StringBuilder codigo = new StringBuilder(codigoOptimizado);
+
+        int index = codigo.indexOf(variable);
+        while (index != -1) {
+            // Verificar que no estamos reemplazando una subcadena de otra variable
+            if ((index == 0 || !Character.isLetterOrDigit(codigo.charAt(index - 1))) &&
+                (index + variable.length() == codigo.length() || !Character.isLetterOrDigit(codigo.charAt(index + variable.length())))) {
+                // Reemplazar variable por su nuevo valor
+                codigo.replace(index, index + variable.length(), nuevoValor);
+            }
+            index = codigo.indexOf(variable, index + nuevoValor.length());
         }
 
         this.codigoOptimizado = codigo.toString();
     }
 
-    private StringBuilder eliminarInstruccion(StringBuilder codigo, String instruccion) {
-        int index = codigo.indexOf(instruccion);
-        if (index != -1) {
-            codigo.delete(index, index + instruccion.length());
+    private void eliminarInstruccion(String instruccion) {
+        int index = codigoOptimizado.indexOf(instruccion);
+        while (index != -1) {
+            int end = codigoOptimizado.indexOf("\n", index);
+            codigoOptimizado = codigoOptimizado.substring(0, index) + codigoOptimizado.substring(end + 1);
+            index = codigoOptimizado.indexOf(instruccion);
         }
-        return codigo;
     }
 
     private StringBuilder eliminarLineasVacias(StringBuilder codigo) {
@@ -114,11 +172,10 @@ public class Optimizador {
                 .replaceAll("/", " / ")
                 .replaceAll("&&", " && ")
                 .replaceAll("\\|\\|", " || ")
-                // Aseguramos que <= y >= no se separen
                 .replaceAll("<\\s*=", "<=")
                 .replaceAll(">\\s*=", ">=")
-                .replaceAll("<", " <")
-                .replaceAll(">", " >")
+                .replaceAll("<", " < ")
+                .replaceAll(">", " > ")
                 .replaceAll("\\(", " ( ")
                 .replaceAll("\\)", " ) ")
                 .replaceAll("\\{", " { ")
@@ -126,5 +183,4 @@ public class Optimizador {
                 .replaceAll("\\s+", " ") // Elimina espacios extra
                 .trim();
     }
-    
 }
