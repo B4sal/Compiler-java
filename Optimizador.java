@@ -1,18 +1,14 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Optimizador {
-
     private String codigoOptimizado;
     private List<String[]> instrucciones;
-    private Map<String, String> mapaVariables; // Mapeo de variables redundantes a sus equivalentes
 
     public Optimizador() {
         this.instrucciones = new ArrayList<>();
-        this.mapaVariables = new HashMap<>();
     }
 
     public String optimizarCodigo(List<String> codigo) {
@@ -23,21 +19,16 @@ public class Optimizador {
         String codigoOriginal = codigoSinEspacios.toString();
         String[] lineasCodigo = codigoOriginal.split("\n");
 
-        // Procesar cada instrucción para obtener expresiones
         for (String instruccion : lineasCodigo) {
             if (instruccion.contains("=")) {
                 obtenerExpresion(instruccion);
             }
         }
 
-        // Inicializar con el código original
         this.codigoOptimizado = codigoOriginal;
-
-        // Analizar y optimizar expresiones
         analizarExpresiones();
-
-        // Eliminar líneas vacías y formatear
         StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
+
         return formatearCodigoPorLineas(resultado.toString());
     }
 
@@ -50,77 +41,73 @@ public class Optimizador {
         }
     }
 
-private void analizarExpresiones() {
-    for (int i = 0; i < instrucciones.size(); i++) {
-        String[] actual = instrucciones.get(i);
-        String expresionActual = actual[1];
+    private void analizarExpresiones() {
+        for (int i = 0; i < instrucciones.size(); i++) {
+            String[] actual = instrucciones.get(i);
+            String expresionActual = actual[1];
 
-        for (int j = i + 1; j < instrucciones.size(); j++) {
-            String[] siguiente = instrucciones.get(j);
-            String expresionSiguiente = siguiente[1];
+            for (int j = i + 1; j < instrucciones.size(); j++) {
+                String[] siguiente = instrucciones.get(j);
+                String expresionSiguiente = siguiente[1];
 
-            if (expresionActual.equals(expresionSiguiente)) {
-                if (!dependenciaAlteradaEntre(i, j, expresionSiguiente)) {
-                    cambiarVariables(actual, siguiente);
+                if (expresionActual.equals(expresionSiguiente)) {
+                    if (!dependenciaAlteradaEntre(i, j, expresionSiguiente)) {
+                        cambiarVariables(actual, siguiente);
+                    }
                 }
             }
         }
     }
-}
 
-// Método para verificar si alguna variable involucrada en la expresión fue alterada
-private boolean dependenciaAlteradaEntre(int indiceInicio, int indiceFin, String expresion) {
-    List<String> variablesEnExpresion = extraerVariablesDeExpresion(expresion);
+    private boolean dependenciaAlteradaEntre(int indiceInicio, int indiceFin, String expresion) {
+        List<String> variablesEnExpresion = extraerVariablesDeExpresion(expresion);
 
-    for (int i = indiceInicio + 1; i < indiceFin; i++) {
-        String[] instruccion = instrucciones.get(i);
-        String variableAsignada = instruccion[0];
+        for (int i = indiceInicio + 1; i < indiceFin; i++) {
+            String[] instruccion = instrucciones.get(i);
+            String variableAsignada = instruccion[0];
 
-        if (variablesEnExpresion.contains(variableAsignada)) {
-            return true; // Dependencia alterada
+            if (variablesEnExpresion.contains(variableAsignada)) {
+                return true; // Dependencia alterada
+            }
         }
+        return false; // No se alteraron las dependencias
     }
-    return false; // No se alteraron las dependencias
-}
 
-// Método para extraer variables de una expresión usando expresiones regulares
-private List<String> extraerVariablesDeExpresion(String expresion) {
-    List<String> variables = new ArrayList<>();
-    Pattern patron = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    Matcher matcher = patron.matcher(expresion);
+    private List<String> extraerVariablesDeExpresion(String expresion) {
+        List<String> variables = new ArrayList<>();
+        Pattern patron = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+        Matcher matcher = patron.matcher(expresion);
 
-    while (matcher.find()) {
-        variables.add(matcher.group());
+        while (matcher.find()) {
+            variables.add(matcher.group());
+        }
+        return variables;
     }
-    return variables;
-}
-
 
     private void cambiarVariables(String[] linea1, String[] linea2) {
         String instruccion2 = linea2[0] + "=" + linea2[1];
         StringBuilder codigo = new StringBuilder(codigoOptimizado);
+        codigo = eliminarInstruccion(codigo, instruccion2);
 
-        int index = codigo.indexOf(variable);
-        while (index != -1) {
-            // Verificar que no estamos reemplazando una subcadena de otra variable
-            if ((index == 0 || !Character.isLetterOrDigit(codigo.charAt(index - 1))) &&
-                (index + variable.length() == codigo.length() || !Character.isLetterOrDigit(codigo.charAt(index + variable.length())))) {
-                // Reemplazar variable por su nuevo valor
+        if (linea1.length > 0 && linea2.length > 0) {
+            String variable = linea2[0];
+            String nuevoValor = linea1[0];
+            int index = codigo.indexOf(variable);
+            while (index != -1) {
                 codigo.replace(index, index + variable.length(), nuevoValor);
+                index = codigo.indexOf(variable, index + nuevoValor.length());
             }
-            index = codigo.indexOf(variable, index + nuevoValor.length());
         }
 
         this.codigoOptimizado = codigo.toString();
     }
 
-    private void eliminarInstruccion(String instruccion) {
-        int index = codigoOptimizado.indexOf(instruccion);
-        while (index != -1) {
-            int end = codigoOptimizado.indexOf("\n", index);
-            codigoOptimizado = codigoOptimizado.substring(0, index) + codigoOptimizado.substring(end + 1);
-            index = codigoOptimizado.indexOf(instruccion);
+    private StringBuilder eliminarInstruccion(StringBuilder codigo, String instruccion) {
+        int index = codigo.indexOf(instruccion);
+        if (index != -1) {
+            codigo.delete(index, index + instruccion.length());
         }
+        return codigo;
     }
 
     private StringBuilder eliminarLineasVacias(StringBuilder codigo) {
