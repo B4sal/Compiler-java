@@ -1,5 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Optimizador {
     private String codigoOptimizado;
@@ -39,21 +41,51 @@ public class Optimizador {
         }
     }
 
-    private void analizarExpresiones() {
-        for (int i = 0; i < instrucciones.size(); i++) {
-            String[] actual = instrucciones.get(i);
-            String expresionActual = actual[1];
+private void analizarExpresiones() {
+    for (int i = 0; i < instrucciones.size(); i++) {
+        String[] actual = instrucciones.get(i);
+        String expresionActual = actual[1];
 
-            for (int j = i + 1; j < instrucciones.size(); j++) {
-                String[] siguiente = instrucciones.get(j);
-                String expresionSiguiente = siguiente[1];
+        for (int j = i + 1; j < instrucciones.size(); j++) {
+            String[] siguiente = instrucciones.get(j);
+            String expresionSiguiente = siguiente[1];
 
-                if (expresionActual.equals(expresionSiguiente)) {
+            if (expresionActual.equals(expresionSiguiente)) {
+                if (!dependenciaAlteradaEntre(i, j, expresionSiguiente)) {
                     cambiarVariables(actual, siguiente);
                 }
             }
         }
     }
+}
+
+// Método para verificar si alguna variable involucrada en la expresión fue alterada
+private boolean dependenciaAlteradaEntre(int indiceInicio, int indiceFin, String expresion) {
+    List<String> variablesEnExpresion = extraerVariablesDeExpresion(expresion);
+
+    for (int i = indiceInicio + 1; i < indiceFin; i++) {
+        String[] instruccion = instrucciones.get(i);
+        String variableAsignada = instruccion[0];
+
+        if (variablesEnExpresion.contains(variableAsignada)) {
+            return true; // Dependencia alterada
+        }
+    }
+    return false; // No se alteraron las dependencias
+}
+
+// Método para extraer variables de una expresión usando expresiones regulares
+private List<String> extraerVariablesDeExpresion(String expresion) {
+    List<String> variables = new ArrayList<>();
+    Pattern patron = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
+    Matcher matcher = patron.matcher(expresion);
+
+    while (matcher.find()) {
+        variables.add(matcher.group());
+    }
+    return variables;
+}
+
 
     private void cambiarVariables(String[] linea1, String[] linea2) {
         String instruccion2 = linea2[0] + "=" + linea2[1];

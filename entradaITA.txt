@@ -1,0 +1,13 @@
+_x_ = 7
+_Err1_ = 1 + "_Hola_"
+_Err2_ = _Indefinido_ + 1
+while ( _varA1_ <= 50 && _varB2_ >= 2 ) {
+_varCounter4_ + 1  
+_varB2_ = 4 / _x_ + 2 * 1
+_x_ = 77
+_x1_ = 79
+_z_ = 4 / _x_ + 2 * 1
+_y_ = 4 / _x_ + 2 * 1
+}
+
+_otro_ =_varB2_ / _z_ + _z_ - _y_ % _x2_
