@@ -6,9 +6,11 @@ _varCounter3_ = 0
 _varCounter4_ = 0 
 while ( _varA1_ <= 50 && _varB2_ >= 2 ) {
 _varCounter4_ + 1  
-_varB2_ =4 / 3 + 2 * 1
+_varB2_ = 4 / _x_ + 2 * 1
+_x_ = 77
+_x1_ = 79
+_z_ = 4 / _x_ + 2 * 1
+_y_ = 4 / _x_ + 2 * 1
 }
-while ( _varA1_ <= 50 || _varB3_ >= 2 ) {
-_varA1_ = 8 / 7 + 6 * 5
-_varCounter3_ + 1  
-}
+
+_otro_ =_varB2_ / _z_ + _z_ - _y_ % _x2_

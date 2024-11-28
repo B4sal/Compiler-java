@@ -1,14 +1,18 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Optimizador {
+
     private String codigoOptimizado;
     private List<String[]> instrucciones;
+    private Map<String, String> mapaVariables; // Mapeo de variables redundantes a sus equivalentes
 
     public Optimizador() {
         this.instrucciones = new ArrayList<>();
+        this.mapaVariables = new HashMap<>();
     }
 
     public String optimizarCodigo(List<String> codigo) {
@@ -19,16 +23,21 @@ public class Optimizador {
         String codigoOriginal = codigoSinEspacios.toString();
         String[] lineasCodigo = codigoOriginal.split("\n");
 
+        // Procesar cada instrucción para obtener expresiones
         for (String instruccion : lineasCodigo) {
             if (instruccion.contains("=")) {
                 obtenerExpresion(instruccion);
             }
         }
 
+        // Inicializar con el código original
         this.codigoOptimizado = codigoOriginal;
-        analizarExpresiones();
-        StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
 
+        // Analizar y optimizar expresiones
+        analizarExpresiones();
+
+        // Eliminar líneas vacías y formatear
+        StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
         return formatearCodigoPorLineas(resultado.toString());
     }
 
@@ -90,27 +99,28 @@ private List<String> extraerVariablesDeExpresion(String expresion) {
     private void cambiarVariables(String[] linea1, String[] linea2) {
         String instruccion2 = linea2[0] + "=" + linea2[1];
         StringBuilder codigo = new StringBuilder(codigoOptimizado);
-        codigo = eliminarInstruccion(codigo, instruccion2);
 
-        if (linea1.length > 0 && linea2.length > 0) {
-            String variable = linea2[0];
-            String nuevoValor = linea1[0];
-            int index = codigo.indexOf(variable);
-            while (index != -1) {
+        int index = codigo.indexOf(variable);
+        while (index != -1) {
+            // Verificar que no estamos reemplazando una subcadena de otra variable
+            if ((index == 0 || !Character.isLetterOrDigit(codigo.charAt(index - 1))) &&
+                (index + variable.length() == codigo.length() || !Character.isLetterOrDigit(codigo.charAt(index + variable.length())))) {
+                // Reemplazar variable por su nuevo valor
                 codigo.replace(index, index + variable.length(), nuevoValor);
-                index = codigo.indexOf(variable, index + nuevoValor.length());
             }
+            index = codigo.indexOf(variable, index + nuevoValor.length());
         }
 
         this.codigoOptimizado = codigo.toString();
     }
 
-    private StringBuilder eliminarInstruccion(StringBuilder codigo, String instruccion) {
-        int index = codigo.indexOf(instruccion);
-        if (index != -1) {
-            codigo.delete(index, index + instruccion.length());
+    private void eliminarInstruccion(String instruccion) {
+        int index = codigoOptimizado.indexOf(instruccion);
+        while (index != -1) {
+            int end = codigoOptimizado.indexOf("\n", index);
+            codigoOptimizado = codigoOptimizado.substring(0, index) + codigoOptimizado.substring(end + 1);
+            index = codigoOptimizado.indexOf(instruccion);
         }
-        return codigo;
     }
 
     private StringBuilder eliminarLineasVacias(StringBuilder codigo) {
@@ -146,11 +156,10 @@ private List<String> extraerVariablesDeExpresion(String expresion) {
                 .replaceAll("/", " / ")
                 .replaceAll("&&", " && ")
                 .replaceAll("\\|\\|", " || ")
-                // Aseguramos que <= y >= no se separen
                 .replaceAll("<\\s*=", "<=")
                 .replaceAll(">\\s*=", ">=")
-                .replaceAll("<", " <")
-                .replaceAll(">", " >")
+                .replaceAll("<", " < ")
+                .replaceAll(">", " > ")
                 .replaceAll("\\(", " ( ")
                 .replaceAll("\\)", " ) ")
                 .replaceAll("\\{", " { ")
@@ -158,5 +167,4 @@ private List<String> extraerVariablesDeExpresion(String expresion) {
                 .replaceAll("\\s+", " ") // Elimina espacios extra
                 .trim();
     }
-    
 }
