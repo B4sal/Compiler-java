@@ -5,7 +5,7 @@ _Err2_ = _Indefinido_ + 1
 while ( _varA1_ < = 50 && _varB2_ > = 2 ) {
 _varCounter4_ + 1
 _varB2_ = _a_ / _x_ + 2 * 1
-_x_ = x|
+_x_ = 77
 _x1_ = 79
 _z_ = _a_ / _x_ + 2 * 1
 _a_ = 2

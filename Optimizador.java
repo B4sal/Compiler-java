@@ -7,8 +7,14 @@ public class Optimizador {
     private String codigoOptimizado;
     private List<String[]> instrucciones;
 
+    // Lista de variables que no deben ser optimizadas
+    private List<String> variablesNoOptimizables;
+
     public Optimizador() {
         this.instrucciones = new ArrayList<>();
+        this.variablesNoOptimizables = new ArrayList<>();
+        // Añadimos _Indefinido_ a la lista de variables no optimizables
+        variablesNoOptimizables.add("_Indefinido_");
     }
 
     public String optimizarCodigo(List<String> codigo) {
@@ -19,14 +25,18 @@ public class Optimizador {
         String codigoOriginal = codigoSinEspacios.toString();
         String[] lineasCodigo = codigoOriginal.split("\n");
 
+        // Almacenamos las instrucciones con la forma [variable, expresión]
         for (String instruccion : lineasCodigo) {
             if (instruccion.contains("=")) {
                 obtenerExpresion(instruccion);
             }
         }
 
+        // Empezamos a analizar las expresiones para optimizarlas
         this.codigoOptimizado = codigoOriginal;
         analizarExpresiones();
+
+        // Eliminamos las líneas vacías
         StringBuilder resultado = eliminarLineasVacias(new StringBuilder(codigoOptimizado));
 
         return formatearCodigoPorLineas(resultado.toString());
@@ -42,6 +52,7 @@ public class Optimizador {
     }
 
     private void analizarExpresiones() {
+        // Analizamos las expresiones y las optimizamos
         for (int i = 0; i < instrucciones.size(); i++) {
             String[] actual = instrucciones.get(i);
             String expresionActual = actual[1];
@@ -50,7 +61,11 @@ public class Optimizador {
                 String[] siguiente = instrucciones.get(j);
                 String expresionSiguiente = siguiente[1];
 
-                if (expresionActual.equals(expresionSiguiente)) {
+                // Si las expresiones son iguales y no están en la lista de no optimizables
+                if (expresionActual.equals(expresionSiguiente) && 
+                    !variablesNoOptimizables.contains(actual[0])) {
+                    
+                    // Si no hay alteración de dependencias, reemplazamos la variable
                     if (!dependenciaAlteradaEntre(i, j, expresionSiguiente)) {
                         cambiarVariables(actual, siguiente);
                     }
@@ -65,6 +80,11 @@ public class Optimizador {
         for (int i = indiceInicio + 1; i < indiceFin; i++) {
             String[] instruccion = instrucciones.get(i);
             String variableAsignada = instruccion[0];
+
+            // Si la variable está en la lista negra, no la optimizamos
+            if (variablesNoOptimizables.contains(variableAsignada)) {
+                continue;
+            }
 
             if (variablesEnExpresion.contains(variableAsignada)) {
                 return true; // Dependencia alterada
@@ -92,10 +112,14 @@ public class Optimizador {
         if (linea1.length > 0 && linea2.length > 0) {
             String variable = linea2[0];
             String nuevoValor = linea1[0];
-            int index = codigo.indexOf(variable);
-            while (index != -1) {
-                codigo.replace(index, index + variable.length(), nuevoValor);
-                index = codigo.indexOf(variable, index + nuevoValor.length());
+
+            // Reemplazamos la variable en el código, pero solo si no está en la lista negra
+            if (!variablesNoOptimizables.contains(variable)) {
+                int index = 0;
+                while ((index = codigo.indexOf(variable, index)) != -1) {
+                    codigo.replace(index, index + variable.length(), nuevoValor);
+                    index += nuevoValor.length();
+                }
             }
         }
 
@@ -142,6 +166,7 @@ public class Optimizador {
                 .replaceAll("\\*", " * ")
                 .replaceAll("/", " / ")
                 .replaceAll("&&", " && ")
+                .replaceAll("%", " % ")
                 .replaceAll("\\|\\|", " || ")
                 .replaceAll("<\\s*=", "<=")
                 .replaceAll(">\\s*=", ">=")
